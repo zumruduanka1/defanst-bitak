@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>DEFANS AI</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Dezenformasyona Karşı Yapay Zeka Kalkanı</h1>
+
+<div class="grid">
+
+<div class="card">
+<textarea id="text" placeholder="URL veya metin gir..."></textarea>
+<button onclick="send()">Analiz Et</button>
+<h2 id="result"></h2>
+</div>
+
+<div class="card">
+<h3>Canlı Akış</h3>
+<div id="feed"></div>
+</div>
+
+</div>
+
+</div>
+
+<script>
+async function send(){
+ let t = document.getElementById("text").value
+
+ let r = await fetch("/api/analyze",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({text:t})
+ })
+
+ let d = await r.json()
+ document.getElementById("result").innerText = "Risk: %" + d.risk + " " + d.label
+}
+
+async function load(){
+ let r = await fetch("/api/feed")
+ let d = await r.json()
+
+ let html = ""
+
+ d.forEach(x=>{
+  let cls = x.risk >= 60 ? "risk" : "safe"
+  html += `<div class="item ${cls}">${x.text} (%${x.risk})</div>`
+ })
+
+ document.getElementById("feed").innerHTML = html
+}
+
+setInterval(load,4000)
+load()
+</script>
+
+</body>
+</html>
