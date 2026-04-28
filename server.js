@@ -1,29 +1,18 @@
 const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
-require("dotenv").config();
+const OpenAI = require("openai");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 📊 Basit analiz (anahtar kelime tabanlı)
-function analizEt(metin) {
-  const negatif = ["yalan", "sahte", "uydurma", "fake"];
-  let skor = 0;
+// 🔑 API
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
-  negatif.forEach(k => {
-    if (metin.toLowerCase().includes(k)) skor++;
-  });
-
-  if (skor > 0) {
-    return { sonuc: "Şüpheli ⚠️", guven: 60 + skor * 10 };
-  } else {
-    return { sonuc: "Daha güvenilir ✅", guven: 80 };
-  }
-}
-
-// 📧 Mail gönderici
+// 📧 MAIL
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -32,68 +21,155 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// API
+// 🧠 ANALİZ
+async function analizEt(metin) {
+  try {
+    const res = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
+        {
+          role: "system",
+          content: "Yalan haber analiz et. JSON ver: {sonuc, guven}"
+        },
+        { role: "user", content: metin }
+      ]
+    });
+
+    return JSON.parse(res.choices[0].message.content);
+  } catch {
+    return { sonuc: "Analiz yapılamadı", guven: 0 };
+  }
+}
+
+// 📡 SOSYAL VERİ (DEMO)
+app.get("/sosyal", (req, res) => {
+  res.json([
+    { kaynak: "Twitter", text: "Deprem olacak iddiası yayıldı" },
+    { kaynak: "Instagram", text: "Yeni telefon çıktı" },
+    { kaynak: "Facebook", text: "Sahte haber paylaşıldı" }
+  ]);
+});
+
+// 🔗 ANALİZ API
 app.post("/analiz", async (req, res) => {
   const { metin, email } = req.body;
 
-  const sonuc = analizEt(metin);
+  const sonuc = await analizEt(metin);
 
-  // mail gönder
-  if (email) {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Analiz Sonucu",
-      text: `Sonuç: ${sonuc.sonuc} | Güven: %${sonuc.guven}`
-    });
+  if (email && email.includes("@")) {
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "Defanst Analiz Sonucu",
+        text: `${sonuc.sonuc} (%${sonuc.guven})`
+      });
+    } catch {}
   }
 
   res.json(sonuc);
 });
 
-// FRONTEND
+// 🌐 FRONTEND (GELİŞMİŞ TASARIM)
 app.get("/", (req, res) => {
   res.send(`
   <html>
   <head>
     <title>Defanst</title>
     <style>
-      body { font-family: Arial; background:#0f172a; color:white; text-align:center; }
-      textarea { width:300px; height:100px; }
-      button { padding:10px; margin-top:10px; }
+      body {
+        background: linear-gradient(135deg,#0f172a,#1e293b);
+        color: white;
+        font-family: Arial;
+        text-align: center;
+      }
+      .card {
+        background: #1e293b;
+        padding: 20px;
+        margin: 40px auto;
+        width: 400px;
+        border-radius: 15px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      }
+      textarea {
+        width: 100%;
+        height: 100px;
+        border-radius: 10px;
+        margin-top:10px;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        border-radius: 8px;
+        margin-top:10px;
+      }
+      button {
+        margin-top:15px;
+        padding:10px;
+        width:100%;
+        border:none;
+        border-radius:10px;
+        background:#22c55e;
+        color:white;
+        font-weight:bold;
+      }
+      .sonuc {
+        margin-top:20px;
+        font-size:18px;
+      }
+      .sosyal {
+        margin-top:20px;
+        font-size:14px;
+        opacity:0.8;
+      }
     </style>
   </head>
+
   <body>
-    <h1>Yalan Haber Analizi</h1>
 
-    <textarea id="metin" placeholder="Metin gir"></textarea><br>
-    <input id="email" placeholder="Email (opsiyonel)"/><br>
+  <div class="card">
+    <h2>Yalan Haber Analizi</h2>
 
-    <button onclick="gonder()">Analiz Et</button>
+    <textarea id="metin" placeholder="Metin gir"></textarea>
+    <input id="email" placeholder="Email (opsiyonel)" />
 
-    <h2 id="sonuc"></h2>
+    <button onclick="analiz()">Analiz Et</button>
 
-    <script>
-      function gonder() {
-        fetch('/analiz', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({
-            metin: document.getElementById('metin').value,
-            email: document.getElementById('email').value
-          })
-        })
-        .then(r=>r.json())
-        .then(d=>{
-          document.getElementById('sonuc').innerText =
-            d.sonuc + " (Güven: %" + d.guven + ")";
-        });
-      }
-    </script>
+    <div class="sonuc" id="sonuc"></div>
+
+    <div class="sosyal" id="sosyal"></div>
+  </div>
+
+  <script>
+  function analiz(){
+    fetch('/analiz',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        metin:document.getElementById('metin').value,
+        email:document.getElementById('email').value
+      })
+    })
+    .then(r=>r.json())
+    .then(d=>{
+      document.getElementById('sonuc').innerText =
+        d.sonuc + " (%" + d.guven + ")";
+    });
+  }
+
+  // sosyal veri yükle
+  fetch('/sosyal')
+  .then(r=>r.json())
+  .then(data=>{
+    document.getElementById('sosyal').innerText =
+      "Kaynaklar: " + data.map(x=>x.kaynak).join(", ");
+  });
+  </script>
+
   </body>
   </html>
   `);
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Çalışıyor:", PORT));
+app.listen(PORT, () => console.log("Çalışıyor"));
