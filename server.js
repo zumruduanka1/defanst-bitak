@@ -7,45 +7,55 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔑 API
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// 🔑 OpenAI (çökme engelli)
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+}
 
-// 📧 MAIL
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+// 📧 Mail
+let transporter = null;
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+}
 
 // 🧠 ANALİZ
 async function analizEt(metin) {
+  if (!openai) {
+    return { sonuc: "AI aktif değil (API key yok)", guven: 0 };
+  }
+
   try {
     const res = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [
         {
           role: "system",
-          content: "Yalan haber analiz et. JSON ver: {sonuc, guven}"
+          content: "Yalan haber analiz et ve JSON ver: {sonuc, guven}"
         },
         { role: "user", content: metin }
       ]
     });
 
     return JSON.parse(res.choices[0].message.content);
-  } catch {
-    return { sonuc: "Analiz yapılamadı", guven: 0 };
+  } catch (e) {
+    return { sonuc: "Analiz hatası", guven: 0 };
   }
 }
 
-// 📡 SOSYAL VERİ (DEMO)
+// 📡 SOSYAL VERİ
 app.get("/sosyal", (req, res) => {
   res.json([
     { kaynak: "Twitter", text: "Deprem olacak iddiası yayıldı" },
-    { kaynak: "Instagram", text: "Yeni telefon çıktı" },
+    { kaynak: "Instagram", text: "Yeni teknoloji çıktı" },
     { kaynak: "Facebook", text: "Sahte haber paylaşıldı" }
   ]);
 });
@@ -56,7 +66,8 @@ app.post("/analiz", async (req, res) => {
 
   const sonuc = await analizEt(metin);
 
-  if (email && email.includes("@")) {
+  // 📧 Mail gönder (varsa)
+  if (transporter && email && email.includes("@")) {
     try {
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
@@ -64,13 +75,15 @@ app.post("/analiz", async (req, res) => {
         subject: "Defanst Analiz Sonucu",
         text: `${sonuc.sonuc} (%${sonuc.guven})`
       });
-    } catch {}
+    } catch (e) {
+      console.log("Mail hatası:", e.message);
+    }
   }
 
   res.json(sonuc);
 });
 
-// 🌐 FRONTEND (GELİŞMİŞ TASARIM)
+// 🌐 FRONTEND
 app.get("/", (req, res) => {
   res.send(`
   <html>
@@ -157,7 +170,6 @@ app.get("/", (req, res) => {
     });
   }
 
-  // sosyal veri yükle
   fetch('/sosyal')
   .then(r=>r.json())
   .then(data=>{
@@ -172,4 +184,4 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Çalışıyor"));
+app.listen(PORT, () => console.log("Server çalışıyor"));
