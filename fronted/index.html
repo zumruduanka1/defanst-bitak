@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>DEFANS PRO</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="header">
+  <h1>DEFANS</h1>
+  <p>Dezenformasyon Erken Fark ve Analiz Sistemi</p>
+</div>
+
+<div class="grid">
+
+<div class="card">
+  <h3>Yeni Analiz</h3>
+
+  <textarea id="metin"></textarea>
+  <button onclick="analiz()">Yapay Zeka Analizi Başlat</button>
+
+  <div id="sonuc"></div>
+</div>
+
+<div class="card">
+  <h3>Son Analizler</h3>
+  <div id="liste"></div>
+</div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
