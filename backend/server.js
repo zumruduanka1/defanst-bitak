@@ -8,6 +8,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 🔑 ENV
+const MY_EMAIL = process.env.MY_EMAIL;
+const SECOND_EMAIL = process.env.SECOND_EMAIL;
+
 // 🔑 OPENAI
 let openai = null;
 if (process.env.OPENAI_API_KEY) {
@@ -51,87 +55,70 @@ async function analizEt(metin) {
   }
 }
 
-// 🐦 TWITTER API
+// 🐦 TWITTER
 app.get("/twitter", async (req, res) => {
-  if (!twitterClient) {
-    return res.json([{ text: "Twitter API yok" }]);
-  }
-
   try {
-    const tweets = await twitterClient.v2.search("haber", {
-      max_results: 5
-    });
+    if (twitterClient) {
+      const tweets = await twitterClient.v2.search("gündem", {
+        max_results: 5
+      });
 
-    const data = tweets.data.data.map(t => ({
-      text: t.text
-    }));
+      return res.json(tweets.data.data.map(t => ({ text: t.text })));
+    }
+  } catch {}
 
-    res.json(data);
-  } catch {
-    res.json([{ text: "Twitter veri alınamadı" }]);
-  }
+  res.json([
+    { text: "Gündemde yanlış bilgi yayılıyor" },
+    { text: "Dezenformasyon artıyor" }
+  ]);
 });
 
-// 📊 ANALİZ
+// 📰 HABER
+app.get("/haber", async (req, res) => {
+  try {
+    const data = await fetch("https://api.rss2json.com/v1/api.json?rss_url=https://www.trthaber.com/rss/tum-haberler.rss");
+    const json = await data.json();
+
+    return res.json(json.items.slice(0,5).map(x => ({ title: x.title })));
+  } catch {}
+
+  res.json([{ title: "Haber alınamadı" }]);
+});
+
+// 📊 ANALİZ + MAİL (2 SABİT MAİL)
 app.post("/analiz", async (req, res) => {
-  const { metin, email } = req.body;
+  const { metin } = req.body;
 
   const sonuc = await analizEt(metin);
 
-  if (transporter && email && email.includes("@")) {
+  if (transporter) {
     try {
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
-        to: email,
+        to: [MY_EMAIL, SECOND_EMAIL].filter(Boolean),
         subject: "Analiz Sonucu",
         text: `${sonuc.sonuc} (%${sonuc.guven})`
       });
-    } catch {}
+    } catch (e) {
+      console.log("Mail hata:", e.message);
+    }
   }
 
   res.json(sonuc);
 });
 
-// 🌐 UI (SENİN TASARIMA YAKIN)
+// 🌐 UI
 app.get("/", (req, res) => {
   res.send(`
   <html>
   <head>
   <title>DEFANS PRO</title>
   <style>
-  body {
-    background:#0b1220;
-    color:white;
-    font-family:sans-serif;
-    text-align:center;
-  }
-  .box {
-    width:500px;
-    margin:auto;
-    margin-top:50px;
-    background:#111827;
-    padding:20px;
-    border-radius:15px;
-  }
-  textarea,input {
-    width:100%;
-    margin-top:10px;
-    padding:10px;
-    border-radius:8px;
-  }
-  button {
-    margin-top:15px;
-    width:100%;
-    padding:12px;
-    background:linear-gradient(90deg,#4f46e5,#9333ea);
-    border:none;
-    color:white;
-  }
-  .bar {
-    height:20px;
-    background:green;
-    margin-top:10px;
-  }
+  body {background:#0b1220;color:white;font-family:sans-serif;}
+  .box {width:500px;margin:auto;margin-top:50px;background:#111827;padding:20px;border-radius:15px;}
+  textarea {width:100%;margin-top:10px;padding:10px;border-radius:8px;}
+  button {margin-top:15px;width:100%;padding:12px;background:linear-gradient(90deg,#4f46e5,#9333ea);color:white;border:none;}
+  .bar {height:20px;background:green;margin-top:10px;}
   </style>
   </head>
 
@@ -140,8 +127,7 @@ app.get("/", (req, res) => {
   <div class="box">
     <h2>DEFANS PRO</h2>
 
-    <textarea id="metin"></textarea>
-    <input id="email" placeholder="email">
+    <textarea id="metin" placeholder="Metni gir..."></textarea>
 
     <button onclick="analiz()">Analiz Başlat</button>
 
@@ -149,6 +135,7 @@ app.get("/", (req, res) => {
     <div class="bar" id="bar"></div>
 
     <div id="twitter"></div>
+    <div id="haber"></div>
   </div>
 
   <script>
@@ -157,8 +144,7 @@ app.get("/", (req, res) => {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        metin:metin.value,
-        email:email.value
+        metin:metin.value
       })
     })
     .then(r=>r.json())
@@ -171,8 +157,13 @@ app.get("/", (req, res) => {
   fetch('/twitter')
   .then(r=>r.json())
   .then(d=>{
-    twitter.innerText =
-      "Twitter: " + d.map(x=>x.text).join(" | ");
+    twitter.innerText = "Twitter: " + d.map(x=>x.text).join(" | ");
+  });
+
+  fetch('/haber')
+  .then(r=>r.json())
+  .then(d=>{
+    haber.innerText = "Haber: " + d.map(x=>x.title).join(" | ");
   });
   </script>
 
@@ -181,4 +172,6 @@ app.get("/", (req, res) => {
   `);
 });
 
-app.listen(process.env.PORT || 10000);
+app.listen(process.env.PORT || 10000, () => {
+  console.log("Server çalışıyor");
+});
