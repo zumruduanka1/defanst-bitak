@@ -1,110 +1,132 @@
 const express = require("express");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
 const OpenAI = require("openai");
+const nodemailer = require("nodemailer");
 const { TwitterApi } = require("twitter-api-v2");
+const fetch = require("node-fetch");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔑 ENV
 const MY_EMAIL = process.env.MY_EMAIL;
 const SECOND_EMAIL = process.env.SECOND_EMAIL;
 
-// 🔑 OPENAI
-let openai = null;
-if (process.env.OPENAI_API_KEY) {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
+// 🔑 AI
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 // 🐦 TWITTER
-let twitterClient = null;
-if (process.env.TWITTER_BEARER) {
-  twitterClient = new TwitterApi(process.env.TWITTER_BEARER);
-}
+const twitterClient = process.env.TWITTER_BEARER
+  ? new TwitterApi(process.env.TWITTER_BEARER)
+  : null;
 
 // 📧 MAIL
-let transporter = null;
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
-  });
-}
+const transporter =
+  process.env.EMAIL_USER && process.env.EMAIL_PASS
+    ? nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS
+        }
+      })
+    : null;
 
-// 🧠 ANALİZ
-async function analizEt(metin) {
-  if (!openai) return { sonuc: "AI aktif değil", guven: 50 };
+// 📦 GEÇMİŞ (memory)
+let history = [];
+
+// 🧠 ANALİZ (GELİŞMİŞ)
+async function analizEt(text) {
+  if (!openai) return { skor: 50, durum: "Belirsiz" };
 
   try {
     const res = await openai.chat.completions.create({
       model: "gpt-4.1-mini",
       messages: [
-        { role: "system", content: "Yalan haber analiz et JSON ver: {sonuc, guven}" },
-        { role: "user", content: metin }
+        {
+          role: "system",
+          content:
+            "Metni dezenformasyon açısından analiz et. JSON dön: {skor:0-100, durum:'Güvenli|Şüpheli|Riskli'}"
+        },
+        { role: "user", content: text }
       ]
     });
 
     return JSON.parse(res.choices[0].message.content);
   } catch {
-    return { sonuc: "Analiz hatası", guven: 0 };
+    return { skor: 50, durum: "Hata" };
   }
 }
 
-// 🐦 TWITTER
-app.get("/twitter", async (req, res) => {
+// 🌍 FEED
+app.get("/feed", async (req, res) => {
+  let items = [];
+
+  // Twitter
   try {
     if (twitterClient) {
-      const tweets = await twitterClient.v2.search("gündem", {
-        max_results: 5
-      });
-
-      return res.json(tweets.data.data.map(t => ({ text: t.text })));
+      const t = await twitterClient.v2.search("gündem", { max_results: 3 });
+      items.push(...t.data.data.map(x => ({ text: x.text, source: "Twitter" })));
     }
   } catch {}
 
-  res.json([
-    { text: "Gündemde yanlış bilgi yayılıyor" },
-    { text: "Dezenformasyon artıyor" }
-  ]);
-});
-
-// 📰 HABER
-app.get("/haber", async (req, res) => {
+  // Reddit fallback
   try {
-    const data = await fetch("https://api.rss2json.com/v1/api.json?rss_url=https://www.trthaber.com/rss/tum-haberler.rss");
-    const json = await data.json();
-
-    return res.json(json.items.slice(0,5).map(x => ({ title: x.title })));
+    const r = await fetch("https://www.reddit.com/r/worldnews.json");
+    const j = await r.json();
+    items.push(
+      ...j.data.children.slice(0, 3).map(x => ({
+        text: x.data.title,
+        source: "Reddit"
+      }))
+    );
   } catch {}
 
-  res.json([{ title: "Haber alınamadı" }]);
+  // analiz
+  let final = [];
+  for (let i of items) {
+    const a = await analizEt(i.text);
+    final.push({ ...i, ...a });
+  }
+
+  res.json(final);
 });
 
-// 📊 ANALİZ + MAİL (2 SABİT MAİL)
+// 📊 ANALİZ + HISTORY + MAIL
 app.post("/analiz", async (req, res) => {
   const { metin } = req.body;
 
   const sonuc = await analizEt(metin);
 
+  // history ekle
+  history.unshift({
+    text: metin,
+    ...sonuc,
+    date: new Date().toLocaleString()
+  });
+
+  history = history.slice(0, 10);
+
+  // mail
   if (transporter) {
     try {
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: [MY_EMAIL, SECOND_EMAIL].filter(Boolean),
         subject: "Analiz Sonucu",
-        text: `${sonuc.sonuc} (%${sonuc.guven})`
+        text: `${sonuc.durum} (%${sonuc.skor})`
       });
-    } catch (e) {
-      console.log("Mail hata:", e.message);
-    }
+    } catch {}
   }
 
   res.json(sonuc);
+});
+
+// 📜 HISTORY API
+app.get("/history", (req, res) => {
+  res.json(history);
 });
 
 // 🌐 UI
@@ -115,10 +137,11 @@ app.get("/", (req, res) => {
   <title>DEFANS PRO</title>
   <style>
   body {background:#0b1220;color:white;font-family:sans-serif;}
-  .box {width:500px;margin:auto;margin-top:50px;background:#111827;padding:20px;border-radius:15px;}
-  textarea {width:100%;margin-top:10px;padding:10px;border-radius:8px;}
-  button {margin-top:15px;width:100%;padding:12px;background:linear-gradient(90deg,#4f46e5,#9333ea);color:white;border:none;}
-  .bar {height:20px;background:green;margin-top:10px;}
+  .box {width:700px;margin:auto;margin-top:40px;}
+  textarea {width:100%;padding:10px;border-radius:8px;}
+  button {margin-top:10px;width:100%;padding:12px;background:linear-gradient(90deg,#4f46e5,#9333ea);color:white;border:none;}
+  .bar {height:20px;margin-top:10px;background:green;}
+  .item {background:#111827;margin-top:10px;padding:10px;border-radius:10px;}
   </style>
   </head>
 
@@ -127,15 +150,17 @@ app.get("/", (req, res) => {
   <div class="box">
     <h2>DEFANS PRO</h2>
 
-    <textarea id="metin" placeholder="Metni gir..."></textarea>
-
-    <button onclick="analiz()">Analiz Başlat</button>
+    <textarea id="metin"></textarea>
+    <button onclick="analiz()">Analiz</button>
 
     <div id="sonuc"></div>
     <div class="bar" id="bar"></div>
 
-    <div id="twitter"></div>
-    <div id="haber"></div>
+    <h3>Sosyal Medya</h3>
+    <div id="feed"></div>
+
+    <h3>Geçmiş Analizler</h3>
+    <div id="history"></div>
   </div>
 
   <script>
@@ -143,28 +168,44 @@ app.get("/", (req, res) => {
     fetch('/analiz',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        metin:metin.value
-      })
+      body:JSON.stringify({metin:metin.value})
     })
     .then(r=>r.json())
     .then(d=>{
-      sonuc.innerText = d.sonuc + " (%" + d.guven + ")";
-      bar.style.width = d.guven + "%";
+      sonuc.innerText = d.durum + " (%" + d.skor + ")";
+      bar.style.width = d.skor + "%";
+      loadHistory();
     });
   }
 
-  fetch('/twitter')
-  .then(r=>r.json())
-  .then(d=>{
-    twitter.innerText = "Twitter: " + d.map(x=>x.text).join(" | ");
-  });
+  function loadFeed(){
+    fetch('/feed')
+    .then(r=>r.json())
+    .then(data=>{
+      feed.innerHTML = data.map(x => \`
+        <div class="item">
+        <b>\${x.source}</b><br>
+        \${x.text}<br>
+        Risk: %\${x.skor} - \${x.durum}
+        </div>\`).join("");
+    });
+  }
 
-  fetch('/haber')
-  .then(r=>r.json())
-  .then(d=>{
-    haber.innerText = "Haber: " + d.map(x=>x.title).join(" | ");
-  });
+  function loadHistory(){
+    fetch('/history')
+    .then(r=>r.json())
+    .then(data=>{
+      history.innerHTML = data.map(x => \`
+        <div class="item">
+        \${x.text}<br>
+        %\${x.skor} - \${x.durum}<br>
+        <small>\${x.date}</small>
+        </div>\`).join("");
+    });
+  }
+
+  loadFeed();
+  loadHistory();
   </script>
 
   </body>
@@ -172,6 +213,4 @@ app.get("/", (req, res) => {
   `);
 });
 
-app.listen(process.env.PORT || 10000, () => {
-  console.log("Server çalışıyor");
-});
+app.listen(process.env.PORT || 10000);
