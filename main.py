@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-import requests, threading, time, os, random
-import feedparser
+import requests, threading, time, random
 
 app = Flask(__name__)
 
@@ -23,7 +22,7 @@ def ai_score(text):
         if k in t:
             score -= 10
 
-    score += random.randint(0,20)
+    score += random.randint(5,20)
 
     return max(5, min(score,100))
 
@@ -31,10 +30,11 @@ def ai_score(text):
 def fetch_data():
     data = []
 
-    # GOOGLE NEWS
+    # GOOGLE NEWS RSS
     try:
+        import feedparser
         news = feedparser.parse("https://news.google.com/rss?hl=tr&gl=TR&ceid=TR:tr")
-        for e in news.entries[:8]:
+        for e in news.entries[:10]:
             data.append(e.title)
     except:
         pass
@@ -47,19 +47,20 @@ def fetch_data():
             timeout=5
         )
         j = r.json()
-        for p in j["data"]["children"][:8]:
+        for p in j["data"]["children"][:10]:
             data.append(p["data"]["title"])
     except:
         pass
 
-    # FALLBACK
+    # FALLBACK (ASLA BOŞ KALMAZ)
     if not data:
         data = [
             "Şok iddia gündemde",
             "Sosyal medyada yayılan komplo",
             "Son dakika gelişmesi",
             "Uzmanlar uyardı",
-            "Tartışmalı açıklama"
+            "Tartışmalı açıklama",
+            "Gündemi sarsan haber"
         ]
 
     return data
@@ -67,20 +68,27 @@ def fetch_data():
 # ---------------- SCAN ----------------
 def scan():
     global feed
-    d = fetch_data()
 
+    d = fetch_data()
     new = []
+
     for t in d:
         s = ai_score(t)
         new.append({"text": t[:120], "score": s})
 
     feed = new
 
+# ---------------- WORKER ----------------
 def worker():
     while True:
-        scan()
-        time.sleep(15)
+        try:
+            scan()
+        except:
+            pass
+        time.sleep(10)
 
+# 🔥 EN KRİTİK FIX (BOŞ KALMAMASI İÇİN)
+scan()
 threading.Thread(target=worker, daemon=True).start()
 
 # ---------------- ROUTES ----------------
@@ -99,6 +107,8 @@ def analyze():
 
 @app.route("/data")
 def data():
+    if not feed:
+        scan()  # boşsa tekrar doldur
     return {"feed": feed, "history": history}
 
 # ---------------- RUN ----------------
