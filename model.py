@@ -1,37 +1,32 @@
-import pickle
+import joblib
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 
-with open("model.pkl", "rb") as f:
-    vectorizer, model = pickle.load(f)
+MODEL_FILE = "model.joblib"
 
-def keyword_boost(text):
-    text = text.lower()
+def train():
+    texts = [
+        "şok iddia ortaya çıktı",
+        "gizli belge ifşa edildi",
+        "resmi açıklama yapıldı",
+        "bilimsel araştırma sonucu",
+        "kanıtlandı doğru haber"
+    ]
 
-    fake = ["şok","iddia","komplo","gizli","ifşa","bomba"]
-    trust = ["resmi","açıklama","doğrulandı","kaynak"]
+    labels = [1,1,0,0,0]  # 1 = riskli
 
-    score = 0
+    vectorizer = TfidfVectorizer()
+    X = vectorizer.fit_transform(texts)
 
-    for k in fake:
-        if k in text:
-            score += 10
+    model = LogisticRegression()
+    model.fit(X, labels)
 
-    for k in trust:
-        if k in text:
-            score -= 10
+    joblib.dump((model, vectorizer), MODEL_FILE)
 
-    return score
+def load():
+    return joblib.load(MODEL_FILE)
 
 def predict(text):
-    try:
-        vec = vectorizer.transform([text])
-        prob = model.predict_proba(vec)[0][1]
-        base = int(prob * 100)
-
-        boost = keyword_boost(text)
-
-        final = base + boost
-
-        return max(5, min(100, final))
-
-    except:
-        return 10
+    model, vec = load()
+    X = vec.transform([text])
+    return int(model.predict_proba(X)[0][1] * 100)

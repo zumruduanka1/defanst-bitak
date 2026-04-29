@@ -1,6 +1,4 @@
 flask
-gunicorn
 requests
-python-dotenv
-scikit-learn
-pandas
+gunicorn
+feedparser

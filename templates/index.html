@@ -1,23 +1,81 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>DEFANS AI</title>
-<link rel="stylesheet" href="/static/style.css">
-</head>
+<title>DEFANS PRO</title>
 
+<style>
+body {
+  margin:0;
+  font-family:Arial;
+  background:#020617;
+  color:white;
+}
+.container {
+  max-width:1100px;
+  margin:auto;
+  padding:40px;
+}
+h1 {
+  text-align:center;
+  font-size:42px;
+  margin-bottom:10px;
+}
+.subtitle {
+  text-align:center;
+  color:#94a3b8;
+  margin-bottom:30px;
+}
+.grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+}
+.card {
+  background:#0f172a;
+  padding:20px;
+  border-radius:12px;
+}
+textarea {
+  width:100%;
+  height:120px;
+  background:#020617;
+  color:white;
+  border:none;
+  border-radius:10px;
+  padding:10px;
+}
+button {
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  background:linear-gradient(90deg,#6366f1,#8b5cf6);
+  border:none;
+  border-radius:10px;
+  color:white;
+}
+.item {
+  padding:10px;
+  border-bottom:1px solid #1e293b;
+}
+.risk {color:#f59e0b;}
+.safe {color:#10b981;}
+</style>
+
+</head>
 <body>
 
 <div class="container">
 
-<h1>Dezenformasyona Karşı Yapay Zeka Kalkanı</h1>
+<h1>DEFANS</h1>
+<div class="subtitle">Dezenformasyon Analiz Sistemi</div>
 
 <div class="grid">
 
 <div class="card">
-<textarea id="text" placeholder="URL veya metin gir..."></textarea>
-<button onclick="send()">Analiz Et</button>
-<h2 id="result"></h2>
+<textarea id="text" placeholder="Metin / URL gir"></textarea>
+<button onclick="analyze()">Analiz Et</button>
+<h3 id="res"></h3>
 </div>
 
 <div class="card">
@@ -30,35 +88,38 @@
 </div>
 
 <script>
-async function send(){
- let t = document.getElementById("text").value
 
- let r = await fetch("/api/analyze",{
+async function analyze(){
+ let t=document.getElementById("text").value
+
+ let r=await fetch("/analyze",{
   method:"POST",
   headers:{"Content-Type":"application/json"},
   body:JSON.stringify({text:t})
  })
 
- let d = await r.json()
- document.getElementById("result").innerText = "Risk: %" + d.risk + " " + d.label
+ let d=await r.json()
+ document.getElementById("res").innerText="Risk: %"+d.score
+ load()
 }
 
 async function load(){
- let r = await fetch("/api/feed")
- let d = await r.json()
+ let r=await fetch("/data")
+ let d=await r.json()
 
- let html = ""
+ let f=""
 
- d.forEach(x=>{
-  let cls = x.risk >= 60 ? "risk" : "safe"
-  html += `<div class="item ${cls}">${x.text} (%${x.risk})</div>`
+ d.feed.forEach(x=>{
+  let cls=x.score>=50?"risk":"safe"
+  f+=`<div class="item ${cls}">${x.text} (%${x.score})</div>`
  })
 
- document.getElementById("feed").innerHTML = html
+ document.getElementById("feed").innerHTML=f
 }
 
 setInterval(load,4000)
 load()
+
 </script>
 
 </body>

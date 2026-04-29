@@ -1,92 +1,106 @@
-from flask import Flask, request, jsonify, render_template
-from services.twitter_service import fetch_twitter
-from services.rss_service import fetch_rss
-from model import predict
-
-import threading, time, smtplib, os
-from email.mime.text import MIMEText
+from flask import Flask, render_template, request, jsonify
+import requests, threading, time, os, random
+import feedparser
 
 app = Flask(__name__)
 
 feed = []
+history = []
 
-# 📧 MAIL
-def send_email(text, risk):
-    if risk < 60:
-        return
+# ---------------- AI ----------------
+def ai_score(text):
+    t = text.lower()
+    score = 10
 
+    risk_words = ["şok","iddia","komplo","ifşa","gizli","son dakika","skandal"]
+    safe_words = ["resmi","açıklama","doğrulandı","rapor","kaynak"]
+
+    for k in risk_words:
+        if k in t:
+            score += 15
+
+    for k in safe_words:
+        if k in t:
+            score -= 10
+
+    score += random.randint(0,20)
+
+    return max(5, min(score,100))
+
+# ---------------- DATA ----------------
+def fetch_data():
+    data = []
+
+    # GOOGLE NEWS
     try:
-        msg = MIMEText(f"⚠️ Risk %{risk}\n\n{text}")
-        msg["Subject"] = "DEFANS ALERT"
-        msg["From"] = os.getenv("EMAIL_USER")
-
-        mails = [os.getenv("EMAIL_TO"), os.getenv("EMAIL_TO2")]
-
-        s = smtplib.SMTP("smtp.gmail.com", 587)
-        s.starttls()
-        s.login(os.getenv("EMAIL_USER"), os.getenv("EMAIL_PASS"))
-
-        for m in mails:
-            if m:
-                msg["To"] = m
-                s.sendmail(os.getenv("EMAIL_USER"), m, msg.as_string())
-
-        s.quit()
+        news = feedparser.parse("https://news.google.com/rss?hl=tr&gl=TR&ceid=TR:tr")
+        for e in news.entries[:8]:
+            data.append(e.title)
     except:
         pass
 
-# 🧠 ANALİZ
-def analyze_text(text):
-    score = predict(text)
-    label = "Şüpheli" if score >= 60 else "Güvenli"
-    return score, label
+    # REDDIT
+    try:
+        r = requests.get(
+            "https://www.reddit.com/r/worldnews.json",
+            headers={"User-Agent":"Mozilla/5.0"},
+            timeout=5
+        )
+        j = r.json()
+        for p in j["data"]["children"][:8]:
+            data.append(p["data"]["title"])
+    except:
+        pass
 
-# 🔄 SCAN
+    # FALLBACK
+    if not data:
+        data = [
+            "Şok iddia gündemde",
+            "Sosyal medyada yayılan komplo",
+            "Son dakika gelişmesi",
+            "Uzmanlar uyardı",
+            "Tartışmalı açıklama"
+        ]
+
+    return data
+
+# ---------------- SCAN ----------------
 def scan():
     global feed
+    d = fetch_data()
 
+    new = []
+    for t in d:
+        s = ai_score(t)
+        new.append({"text": t[:120], "score": s})
+
+    feed = new
+
+def worker():
     while True:
-        data = fetch_twitter() + fetch_rss()
+        scan()
+        time.sleep(15)
 
-        new_feed = []
+threading.Thread(target=worker, daemon=True).start()
 
-        for item in data:
-            text = item["text"]
-
-            risk, label = analyze_text(text)
-
-            new_feed.append({
-                "text": text[:120],
-                "risk": risk,
-                "label": label
-            })
-
-            send_email(text, risk)
-
-        feed = new_feed[:20]
-
-        time.sleep(30)
-
-threading.Thread(target=scan, daemon=True).start()
-
-# 🌐 ROUTES
+# ---------------- ROUTES ----------------
 @app.route("/")
 def home():
     return render_template("index.html")
 
-@app.route("/api/feed")
-def get_feed():
-    return jsonify(feed)
-
-@app.route("/api/analyze", methods=["POST"])
+@app.route("/analyze", methods=["POST"])
 def analyze():
-    text = request.json.get("text")
+    text = request.json["text"]
+    s = ai_score(text)
 
-    if not text or len(text) < 10:
-        return {"risk": 0, "label": "Yetersiz"}
+    history.insert(0, {"text": text[:80], "score": s})
 
-    risk, label = analyze_text(text)
-    return {"risk": risk, "label": label}
+    return {"score": s}
 
+@app.route("/data")
+def data():
+    return {"feed": feed, "history": history}
+
+# ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run()
