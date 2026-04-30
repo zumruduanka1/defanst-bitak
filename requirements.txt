@@ -1,4 +1,6 @@
 flask
-gunicorn
+transformers
+torch
+datasets
 requests
-python-dotenv
+gunicorn

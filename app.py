@@ -1,25 +1,10 @@
 from flask import Flask, render_template, request, jsonify
-from ai.model import analyze_text
-from utils.mailer import send_mail
-import random
+from ai.text_model import analyze_text
+from ai.image_model import analyze_image
+from services.news import get_news
+from services.social import get_social
 
 app = Flask(__name__)
-history = []
-
-def social_stream():
-    platforms = ["X","Instagram","TikTok","Facebook"]
-    texts = [
-        "Şok gelişme herkes konuşuyor",
-        "Bu gerçek mi?",
-        "Büyük skandal ortaya çıktı",
-        "Viral video gündem oldu",
-        "Gizli belge iddiası"
-    ]
-    return [{
-        "platform":random.choice(platforms),
-        "text":random.choice(texts),
-        "risk":random.randint(20,90)
-    } for _ in range(6)]
 
 @app.route("/")
 def home():
@@ -27,24 +12,18 @@ def home():
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    text = request.form.get("text")
+    data = request.json
+    text = data.get("text")
+
     result = analyze_text(text)
-
-    history.append(result)
-    send_mail(result)
-
     return jsonify(result)
 
-@app.route("/stream")
-def stream():
-    return jsonify(social_stream())
-
-@app.route("/stats")
-def stats():
-    safe = len([h for h in history if h["label"]=="Güvenli"])
-    sus = len([h for h in history if h["label"]=="Şüpheli"])
-    danger = len([h for h in history if h["label"]=="Tehlikeli"])
-    return jsonify({"safe":safe,"suspicious":sus,"danger":danger})
+@app.route("/feed")
+def feed():
+    return jsonify({
+        "news": get_news(),
+        "social": get_social()
+    })
 
 if __name__ == "__main__":
     app.run()
