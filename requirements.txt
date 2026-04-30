@@ -1,7 +1,8 @@
 flask
 gunicorn
+pandas
+numpy
+torch
+transformers
 requests
 python-dotenv
-scikit-learn
-numpy
-pillow

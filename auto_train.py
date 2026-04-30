@@ -1,8 +1,9 @@
-import time
-import os
+import pandas as pd
 
-while True:
-    if os.path.exists("data/feedback.csv"):
-        print("Yeni veri bulundu → yeniden eğitim")
-        os.system("python train.py")
-    time.sleep(300)
+main = pd.read_csv("data/train.csv")
+fb = pd.read_csv("data/feedback.csv")
+
+df = pd.concat([main, fb])
+df.to_csv("data/train.csv", index=False)
+
+print("Model güncellendi")
