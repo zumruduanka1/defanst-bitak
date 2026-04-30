@@ -32,6 +32,7 @@ height:8px;
 background:linear-gradient(90deg,red,green);
 }
 
-#map{height:200px;margin-top:20px;border-radius:15px}
-
-#chart{height:150px !important; max-height:150px}
+#chart{
+height:140px !important;
+max-height:140px;
+}

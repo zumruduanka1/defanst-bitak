@@ -4,7 +4,6 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
 load_dotenv()
-
 app = Flask(__name__)
 
 EMAIL = os.getenv("EMAIL")
@@ -17,14 +16,15 @@ def send_mail(text, score):
         receivers = [EMAIL, "rumeyysauslu@gmail.com"]
 
         msg = MIMEText(f"""
-DEFANS RAPOR
+🚨 DEFANS AI ALERT
 
+İçerik:
 {text}
 
 Risk: %{score}
 """)
 
-        msg["Subject"] = "DEFANS ALERT"
+        msg["Subject"] = "DEFANS UYARI"
         msg["From"] = EMAIL
         msg["To"] = ", ".join(receivers)
 
@@ -34,20 +34,22 @@ Risk: %{score}
         server.sendmail(EMAIL, receivers, msg.as_string())
         server.quit()
 
+        print("MAIL GİTTİ")
+
     except Exception as e:
         print("MAIL HATA:", e)
 
 # ================= AI =================
 def analyze_text(text):
     score = 0
-    words = ["şok","ifşa","gizli","komplo","acil"]
+    keywords = ["şok","ifşa","gizli","komplo","acil","yayılmadan"]
 
-    for w in words:
-        if w in text.lower():
+    for k in keywords:
+        if k in text.lower():
             score += 20
 
-    score += random.randint(10,40)
-    return min(score,100)
+    score += random.randint(10, 40)
+    return min(score, 100)
 
 # ================= ROUTES =================
 @app.route("/")
@@ -62,7 +64,7 @@ def analyze():
     if score >= 50:
         send_mail(text, score)
 
-    return jsonify({"score":score})
+    return jsonify({"score": score})
 
 # ================= TWITTER =================
 @app.route("/twitter")
@@ -101,7 +103,7 @@ def twitter():
         return jsonify(result)
 
     except Exception as e:
-        print(e)
+        print("TWITTER HATA:", e)
         return jsonify([])
 
 if __name__ == "__main__":
