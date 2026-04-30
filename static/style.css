@@ -1,106 +1,28 @@
-body{
-background:#05070d;
-color:#0ff;
-font-family:Arial;
-margin:0;
-overflow-x:hidden;
+body {
+    background: #0b0f1a;
+    color: white;
+    font-family: Arial;
 }
 
-.cyber-bg{
-position:fixed;
-width:100%;
-height:100%;
-background:radial-gradient(circle,#0ff2 1px,transparent 1px);
-background-size:20px 20px;
-animation:move 5s linear infinite;
-z-index:-1;
+.container {
+    display: flex;
+    gap: 30px;
 }
 
-@keyframes move{
-0%{background-position:0 0;}
-100%{background-position:100px 100px;}
+.left, .right {
+    width: 50%;
 }
 
-.header{
-text-align:center;
-padding:20px;
-text-shadow:0 0 10px #0ff;
+textarea {
+    width: 100%;
+    height: 150px;
+    background: #111;
+    color: white;
 }
 
-.main{
-display:flex;
-justify-content:center;
-gap:20px;
-padding:20px;
-}
-
-.panel{
-background:#0a0f1f;
-padding:20px;
-width:400px;
-border:1px solid #0ff;
-border-radius:10px;
-box-shadow:0 0 20px #0ff3;
-}
-
-textarea{
-width:100%;
-height:120px;
-background:black;
-color:#0ff;
-border:none;
-}
-
-button{
-margin-top:10px;
-width:100%;
-padding:10px;
-background:#0ff;
-color:black;
-border:none;
-}
-
-.loader{
-display:none;
-border:3px solid #0ff;
-border-top:3px solid transparent;
-border-radius:50%;
-width:30px;
-height:30px;
-margin:auto;
-animation:spin 1s linear infinite;
-}
-
-@keyframes spin{
-0%{transform:rotate(0deg);}
-100%{transform:rotate(360deg);}
-}
-
-#progress{
-width:100%;
-height:10px;
-background:#111;
-margin-top:10px;
-}
-
-#bar{
-height:10px;
-width:0%;
-background:#0ff;
-transition:0.5s;
-}
-
-.card{
-background:#111;
-padding:10px;
-margin-top:10px;
-border-radius:8px;
-}
-
-.neon{
-box-shadow:0 0 10px #0ff;
-}
-
-.dashboard{
-padding:20px;
+button {
+    padding: 10px;
+    background: purple;
+    color: white;
+    border: none;
 }

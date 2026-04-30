@@ -1,7 +1,4 @@
 flask
-transformers
-torch
-requests
-beautifulsoup4
-pillow
 gunicorn
+requests
+python-dotenv
