@@ -10,20 +10,20 @@
 
 <div class="header">
     <h1>DEFANS</h1>
-    <p>Dezenformasyon Erken Analiz Sistemi</p>
+    <h2>Dezenformasyon Erken Fark ve Analiz Sistemi</h2>
 </div>
 
 <div class="stats">
-    <div class="box">Toplam Analiz <span id="total">0</span></div>
-    <div class="box red">Tehlikeli <span id="danger">0</span></div>
-    <div class="box green">Güvenli <span id="safe">0</span></div>
+    <div class="box"><span id="total">0</span><br>Toplam Analiz</div>
+    <div class="box red"><span id="danger">0</span><br>Tehlikeli</div>
+    <div class="box green"><span id="safe">0</span><br>Güvenli</div>
 </div>
 
-<div class="container">
+<div class="main">
 
 <div class="left">
     <textarea id="text" placeholder="Metin gir"></textarea>
-    <button onclick="analyze()">Analiz Et</button>
+    <button onclick="analyze()">Yapay Zeka Analizi Başlat</button>
 
     <div class="meter">
         <div id="bar"></div>
@@ -33,32 +33,23 @@
 </div>
 
 <div class="right">
-
     <div class="card">
-        <h3>📰 Haberler</h3>
-        {% for n in news %}
-        <p>{{n.title}}</p>
+        <h3>🌐 Sosyal Medya Akışı</h3>
+        {% for s in social %}
+        <p>{{s.text}}</p>
         {% endfor %}
     </div>
-
-    <div class="card">
-        <h3>🌐 Sosyal Medya</h3>
-        {% for r in reddit %}
-        <p>{{r.text}}</p>
-        {% endfor %}
-    </div>
-
 </div>
 
 </div>
 
 <script>
-let total=0, danger=0, safe=0;
+let total=0,danger=0,safe=0;
 
 function analyze(){
-    let text = document.getElementById("text").value;
+    let text=document.getElementById("text").value;
 
-    fetch("/analyze", {
+    fetch("/analyze",{
         method:"POST",
         body:new URLSearchParams({text})
     })
@@ -72,12 +63,11 @@ function analyze(){
         document.getElementById("safe").innerText=safe;
 
         document.getElementById("result").innerText =
-        d.label + " ("+d.risk+"%)";
+        d.label+" ("+d.risk+"%)";
 
         let bar=document.getElementById("bar");
         bar.style.width=d.risk+"%";
-
-        bar.style.background = d.risk>60 ? "red" : "lime";
+        bar.style.background = d.risk>60 ? "red":"lime";
     });
 }
 </script>

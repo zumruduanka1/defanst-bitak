@@ -1,93 +1,115 @@
 from flask import Flask, render_template, request, jsonify
-import requests, os, random, feedparser
+import requests, random, os, smtplib, feedparser
+from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
 load_dotenv()
 app = Flask(__name__)
+
+MAIL_USER = os.getenv("MAIL_USER")
+MAIL_PASS = os.getenv("MAIL_PASS")
 
 # ---------------- ANALİZ ----------------
 def analyze_text(text):
     if not text or len(text.strip()) < 15:
         return {"risk": 0, "label": "Geçersiz"}
 
-    score = 10
+    score = 20
 
-    risky_words = [
+    keywords = [
         "şok", "ifşa", "gizli", "hemen paylaş",
-        "kanıtlandı", "yasaklandı", "skandal"
+        "kanıtlandı", "skandal", "yasaklandı"
     ]
 
-    for w in risky_words:
-        if w in text.lower():
+    for k in keywords:
+        if k in text.lower():
             score += 15
-
-    # uzunluk + yapı analizi
-    if len(text) < 50:
-        score += 10
 
     if "!" in text:
         score += 10
 
-    if text.isupper():
-        score += 20
+    if len(text) < 50:
+        score += 10
 
     score = min(score, 100)
 
-    return {
-        "risk": score,
-        "label": "Şüpheli" if score > 60 else "Güvenli"
-    }
+    label = "Şüpheli" if score > 60 else "Güvenli"
 
-# ---------------- RSS HABER ----------------
-def get_news():
+    return {"risk": score, "label": label}
+
+
+# ---------------- MAIL ----------------
+def send_mail(text, result):
     try:
-        feed = feedparser.parse("https://rss.nytimes.com/services/xml/rss/nyt/World.xml")
-        return [{"title": e.title} for e in feed.entries[:5]]
+        msg = MIMEText(f"""
+Risk: {result['risk']}%
+Durum: {result['label']}
+
+İçerik:
+{text}
+""")
+        msg["Subject"] = "🚨 DEFANS RİSK TESPİTİ"
+        msg["From"] = MAIL_USER
+        msg["To"] = MAIL_USER
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(MAIL_USER, MAIL_PASS)
+        server.send_message(msg)
+        server.quit()
     except:
-        return []
+        pass
 
 
-# ---------------- REDDIT (API’siz) ----------------
-def get_reddit():
+# ---------------- SOSYAL MEDYA ----------------
+def get_social():
+    data = []
+
+    # Reddit (yasal JSON)
     try:
-        url = "https://www.reddit.com/r/news.json"
+        url = "https://www.reddit.com/r/Turkey.json"
         headers = {"User-Agent": "Mozilla/5.0"}
-        data = requests.get(url, headers=headers).json()
-        posts = data["data"]["children"][:5]
+        res = requests.get(url, headers=headers).json()
 
-        return [{"text": p["data"]["title"]} for p in posts]
+        for p in res["data"]["children"][:5]:
+            data.append({"text": p["data"]["title"]})
     except:
-        return []
+        pass
 
+    # RSS (Türkçe haber)
+    try:
+        feed = feedparser.parse("https://www.trthaber.com/rss/son-dakika.rss")
+        for e in feed.entries[:5]:
+            data.append({"text": e.title})
+    except:
+        pass
 
-# ---------------- FALLBACK ----------------
-def fallback_news():
-    return [
-        {"title": "Son dakika: kritik gelişme yaşandı (%70)"},
-        {"title": "Sosyal medyada yayılan iddia (%80)"},
-        {"title": "Ekonomide beklenmeyen gelişme (%40)"},
-    ]
+    # fallback
+    if not data:
+        data = [
+            {"text": "Sosyal medyada yayılan iddia büyük tartışma yarattı"},
+            {"text": "Bir haberin doğruluğu sorgulanıyor"},
+            {"text": "Viral olan içerik gerçek mi?"}
+        ]
+
+    return data
 
 
 # ---------------- ROUTES ----------------
 @app.route("/")
 def home():
-    news = get_news()
-    reddit = get_reddit()
-
-    if not news:
-        news = fallback_news()
-
-    if not reddit:
-        reddit = [{"text": n["title"]} for n in news]
-
-    return render_template("index.html", news=news, reddit=reddit)
+    return render_template("index.html", social=get_social())
 
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
     text = request.form.get("text")
-    return jsonify(analyze_text(text))
+    result = analyze_text(text)
+
+    if result["risk"] > 60:
+        send_mail(text, result)
+
+    return jsonify(result)
 
 
 if __name__ == "__main__":

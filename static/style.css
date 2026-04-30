@@ -1,11 +1,12 @@
 body{
-    background:#05070d;
+    background:#070b16;
     color:white;
     font-family:sans-serif;
 }
 
 .header{
     text-align:center;
+    margin-top:20px;
 }
 
 .stats{
@@ -16,19 +17,19 @@ body{
 }
 
 .box{
-    padding:15px;
+    padding:20px;
     background:#111;
-    border-radius:10px;
-    box-shadow:0 0 10px #00f;
+    border-radius:12px;
+    box-shadow:0 0 15px #00f;
 }
 
-.red{box-shadow:0 0 10px red;}
-.green{box-shadow:0 0 10px lime;}
+.red{box-shadow:0 0 15px red;}
+.green{box-shadow:0 0 15px lime;}
 
-.container{
+.main{
     display:flex;
-    gap:20px;
     padding:20px;
+    gap:20px;
 }
 
 .left{width:60%;}
@@ -39,23 +40,24 @@ textarea{
     height:150px;
     background:#111;
     color:white;
+    border:1px solid #333;
 }
 
 button{
     margin-top:10px;
-    padding:10px;
-    background:linear-gradient(45deg,#6a00ff,#00f);
+    padding:12px;
+    width:100%;
     border:none;
     color:white;
-    box-shadow:0 0 15px #00f;
+    background:linear-gradient(45deg,#6a00ff,#00c3ff);
+    box-shadow:0 0 20px #00f;
 }
 
 .card{
     background:#111;
     padding:15px;
-    margin-bottom:15px;
-    border-radius:10px;
-    box-shadow:0 0 10px #00f;
+    border-radius:12px;
+    box-shadow:0 0 15px #00f;
 }
 
 .meter{
