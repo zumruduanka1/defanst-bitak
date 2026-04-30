@@ -1,29 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
+<title>DEFANS CYBER</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<h1>DEFANS PRO</h1>
+<div class="cyber-bg"></div>
 
-<div class="container">
-
-<div class="left">
-<textarea id="text"></textarea>
-<button onclick="analyze()">Analiz Et</button>
-<h2 id="result"></h2>
+<div class="header">
+<h1>DEFANS</h1>
+<p>Cyber AI Detection System</p>
 </div>
 
-<div class="right">
-<h3>Canlı Sosyal Medya</h3>
+<div class="main">
+
+<div class="panel">
+<textarea id="text" placeholder="Veri gir..."></textarea>
+<button onclick="analyze()">SCAN</button>
+
+<div class="loader" id="loader"></div>
+
+<div id="progress"><div id="bar"></div></div>
+
+<div id="result"></div>
+</div>
+
+<div class="panel">
+<h3>LIVE FEED</h3>
 <div id="stream"></div>
 </div>
 
 </div>
 
+<div class="dashboard">
+<canvas id="chart"></canvas>
+</div>
+
 <script>
+
+let chart;
+
 function analyze(){
+document.getElementById("loader").style.display="block"
+
 fetch("/analyze",{
 method:"POST",
 headers:{"Content-Type":"application/x-www-form-urlencoded"},
@@ -31,24 +53,51 @@ body:"text="+document.getElementById("text").value
 })
 .then(r=>r.json())
 .then(d=>{
-document.getElementById("result").innerText =
-"Risk: "+d.risk+" - "+d.label
+document.getElementById("loader").style.display="none"
+
+document.getElementById("bar").style.width=d.risk+"%"
+
+document.getElementById("result").innerHTML=
+`<div class="card neon">
+Risk: %${d.risk}<br>${d.label}<br>${d.reason}
+</div>`
+
+loadStats()
 })
 }
 
-function load(){
+function loadStream(){
 fetch("/stream")
 .then(r=>r.json())
 .then(data=>{
 let html=""
 data.forEach(i=>{
-html+=`<p>${i.text} (%${i.risk})</p>`
+html+=`<div class="card">[${i.platform}] ${i.text}<br>%${i.risk}</div>`
 })
 document.getElementById("stream").innerHTML=html
 })
 }
 
-setInterval(load,3000)
+function loadStats(){
+fetch("/stats")
+.then(r=>r.json())
+.then(d=>{
+if(chart) chart.destroy()
+
+chart=new Chart(document.getElementById("chart"),{
+type:"doughnut",
+data:{
+labels:["Safe","Suspicious","Danger"],
+datasets:[{data:[d.safe,d.suspicious,d.danger]}]
+}
+})
+})
+}
+
+setInterval(loadStream,3000)
+loadStream()
+loadStats()
+
 </script>
 
 </body>
