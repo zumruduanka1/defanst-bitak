@@ -7,36 +7,50 @@
 </head>
 <body>
 
-<div class="container">
+<div class="nav">
+    <div class="logo">🛡️ DEFANS PRO</div>
+    <div class="badge">AI Powered</div>
+</div>
 
-    <h1 class="title">DEFANS</h1>
-    <p class="subtitle">Dezenformasyon Erken Analiz Sistemi</p>
+<div class="hero">
+    <h1>DEFANS</h1>
+    <h2>Dezenformasyon Erken Fark ve Analiz Sistemi</h2>
+    <p>Yalan haberleri, manipülasyonu ve dezenformasyonu anında tespit edin.</p>
+</div>
 
-    <div class="stats">
-        <div class="card blue">Toplam Analiz <span id="total">0</span></div>
-        <div class="card red">Tehlikeli <span id="danger">0</span></div>
-        <div class="card green">Güvenli <span id="safe">0</span></div>
+<div class="stats">
+    <div class="card">4<br><span>Toplam Analiz</span></div>
+    <div class="card red">0<br><span>Tehlikeli İçerik</span></div>
+    <div class="card green">1<br><span>Güvenli İçerik</span></div>
+</div>
+
+<div class="main">
+
+    <!-- SOL -->
+    <div class="panel left">
+        <div class="tabs">
+            <button class="active">Metin</button>
+            <button>URL</button>
+            <button>Görsel</button>
+        </div>
+
+        <input type="text" id="email" placeholder="E-posta Adresiniz">
+
+        <textarea id="text">Metni buraya gir...</textarea>
+
+        <button class="analyze" onclick="analyze()">🧠 Yapay Zeka Analizi Başlat</button>
+
+        <div class="progressBox">
+            <div class="progressBar" id="bar"></div>
+        </div>
+
+        <div id="result"></div>
     </div>
 
-    <div class="main">
-
-        <div class="left">
-            <textarea id="text" placeholder="Metin gir..."></textarea>
-            <button onclick="analyze()">Analiz Et</button>
-
-            <div class="result">
-                <div class="progress">
-                    <div id="bar"></div>
-                </div>
-                <p id="resultText"></p>
-            </div>
-        </div>
-
-        <div class="right">
-            <h3>Sosyal Medya</h3>
-            <div id="feed"></div>
-        </div>
-
+    <!-- SAĞ -->
+    <div class="panel right">
+        <h3>📊 Son Analizler</h3>
+        <div id="feed"></div>
     </div>
 
 </div>
@@ -44,6 +58,11 @@
 <script>
 async function analyze(){
     let text = document.getElementById("text").value;
+
+    if(text.length < 10){
+        alert("Geçerli içerik gir");
+        return;
+    }
 
     let res = await fetch("/analyze", {
         method:"POST",
@@ -53,25 +72,13 @@ async function analyze(){
 
     let data = await res.json();
 
-    if(data.error){
-        alert("Geçerli içerik gir!");
-        return;
-    }
-
     document.getElementById("bar").style.width = data.score + "%";
-    document.getElementById("resultText").innerText =
+
+    document.getElementById("result").innerHTML =
         data.label + " (%" + data.score + ")";
-
-    document.getElementById("total").innerText++;
-
-    if(data.label == "Tehlikeli"){
-        document.getElementById("danger").innerText++;
-    } else {
-        document.getElementById("safe").innerText++;
-    }
 }
 
-async function loadSocial(){
+async function loadFeed(){
     let res = await fetch("/social");
     let data = await res.json();
 
@@ -81,12 +88,20 @@ async function loadSocial(){
     data.forEach(item=>{
         let div = document.createElement("div");
         div.className = "feedItem";
-        div.innerText = item.text + " (%" + item.risk + ")";
+
+        div.innerHTML = `
+        <span class="platform">${item.platform}</span>
+        <p>${item.text}</p>
+        <div class="risk ${item.risk > 70 ? "danger":"safe"}">
+            %${item.risk}
+        </div>
+        `;
+
         feed.appendChild(div);
     });
 }
 
-loadSocial();
+loadFeed();
 </script>
 
 </body>

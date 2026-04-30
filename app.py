@@ -31,6 +31,15 @@ def analyze_text(text):
 
     return score, label
 
+@app.route("/social")
+def social():
+    data = [
+        {"text":"Şok gelişme! gizli belge sızdı", "risk":85, "platform":"X"},
+        {"text":"Yeni açıklama yapıldı", "risk":20, "platform":"Facebook"},
+        {"text":"Büyük ifşa geliyor", "risk":75, "platform":"TikTok"},
+        {"text":"Resmi kaynak doğruladı", "risk":30, "platform":"Instagram"}
+    ]
+    return jsonify(data)
 
 @app.route("/")
 def index():
