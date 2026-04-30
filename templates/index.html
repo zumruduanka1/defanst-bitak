@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
 <meta charset="UTF-8">
 <title>DEFANS PRO</title>
@@ -8,68 +8,95 @@
 
 <body>
 
-<div class="header">
+<div class="container">
+
     <h1>DEFANS</h1>
-    <h2>Dezenformasyon Erken Fark ve Analiz Sistemi</h2>
-</div>
+    <h2>Dezenformasyon Analiz Sistemi</h2>
 
-<div class="stats">
-    <div class="box"><span id="total">0</span><br>Toplam Analiz</div>
-    <div class="box red"><span id="danger">0</span><br>Tehlikeli</div>
-    <div class="box green"><span id="safe">0</span><br>Güvenli</div>
-</div>
-
-<div class="main">
-
-<div class="left">
-    <textarea id="text" placeholder="Metin gir"></textarea>
-    <button onclick="analyze()">Yapay Zeka Analizi Başlat</button>
-
-    <div class="meter">
-        <div id="bar"></div>
+    <div class="stats">
+        <div class="card blue">Toplam <span id="total">0</span></div>
+        <div class="card red">Tehlikeli <span id="danger">0</span></div>
+        <div class="card green">Güvenli <span id="safe">0</span></div>
     </div>
 
-    <h2 id="result"></h2>
-</div>
+    <div class="main">
 
-<div class="right">
-    <div class="card">
-        <h3>🌐 Sosyal Medya Akışı</h3>
-        {% for s in social %}
-        <p>{{s.text}}</p>
-        {% endfor %}
+        <!-- SOL -->
+        <div class="left">
+
+            <textarea id="text" placeholder="Metin gir..."></textarea>
+
+            <button onclick="analyze()">Analiz Et</button>
+
+            <div class="risk-bar">
+                <div id="bar"></div>
+            </div>
+
+            <h3 id="result"></h3>
+
+        </div>
+
+        <!-- SAĞ -->
+        <div class="right">
+            <h3>Sosyal Medya</h3>
+            <div id="feed"></div>
+        </div>
+
     </div>
-</div>
 
 </div>
 
 <script>
-let total=0,danger=0,safe=0;
+let total=0, danger=0, safe=0;
 
 function analyze(){
-    let text=document.getElementById("text").value;
+    let text = document.getElementById("text").value;
 
     fetch("/analyze",{
         method:"POST",
-        body:new URLSearchParams({text})
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({text})
     })
-    .then(r=>r.json())
-    .then(d=>{
-        total++;
-        if(d.risk>60) danger++; else safe++;
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.error){
+            alert(data.error);
+            return;
+        }
 
-        document.getElementById("total").innerText=total;
-        document.getElementById("danger").innerText=danger;
-        document.getElementById("safe").innerText=safe;
+        total++;
+        if(data.label==="Tehlikeli") danger++;
+        if(data.label==="Güvenli") safe++;
+
+        document.getElementById("total").innerText = total;
+        document.getElementById("danger").innerText = danger;
+        document.getElementById("safe").innerText = safe;
 
         document.getElementById("result").innerText =
-        d.label+" ("+d.risk+"%)";
+            data.label + " (" + data.risk + "%)";
 
-        let bar=document.getElementById("bar");
-        bar.style.width=d.risk+"%";
-        bar.style.background = d.risk>60 ? "red":"lime";
+        let bar = document.getElementById("bar");
+        bar.style.width = data.risk + "%";
     });
 }
+
+function loadSocial(){
+    fetch("/social")
+    .then(res=>res.json())
+    .then(data=>{
+        let html="";
+        data.forEach(item=>{
+            html += `<div class="post">
+                ${item.text}
+                <span>${item.label} (${item.risk}%)</span>
+            </div>`;
+        });
+        document.getElementById("feed").innerHTML = html;
+    });
+}
+
+loadSocial();
+setInterval(loadSocial, 5000);
 </script>
 
 </body>
