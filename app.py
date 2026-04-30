@@ -3,7 +3,12 @@ from ai.text_model import analyze_text
 from ai.image_model import analyze_image
 from services.news import get_news
 from services.social import get_social
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
+MODEL_NAME = "dbmdz/bert-base-turkish-cased"
+
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
 app = Flask(__name__)
 
 @app.route("/")
