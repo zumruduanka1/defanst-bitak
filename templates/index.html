@@ -1,56 +1,92 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
+<meta charset="UTF-8">
+<title>DEFANS PRO</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body>
 
-<h1>DEFANS</h1>
+<div class="container">
 
-<textarea id="text"></textarea>
-<button onclick="send()">Analiz</button>
+    <h1 class="title">DEFANS</h1>
+    <p class="subtitle">Dezenformasyon Erken Analiz Sistemi</p>
 
-<div class="meter">
-  <div id="bar"></div>
+    <div class="stats">
+        <div class="card blue">Toplam Analiz <span id="total">0</span></div>
+        <div class="card red">Tehlikeli <span id="danger">0</span></div>
+        <div class="card green">Güvenli <span id="safe">0</span></div>
+    </div>
+
+    <div class="main">
+
+        <div class="left">
+            <textarea id="text" placeholder="Metin gir..."></textarea>
+            <button onclick="analyze()">Analiz Et</button>
+
+            <div class="result">
+                <div class="progress">
+                    <div id="bar"></div>
+                </div>
+                <p id="resultText"></p>
+            </div>
+        </div>
+
+        <div class="right">
+            <h3>Sosyal Medya</h3>
+            <div id="feed"></div>
+        </div>
+
+    </div>
+
 </div>
 
-<h2 id="result"></h2>
-
-<div id="feed"></div>
-
 <script>
-function send(){
- fetch("/analyze",{
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body:JSON.stringify({text:document.getElementById("text").value})
- })
- .then(r=>r.json())
- .then(d=>{
-   if(d.error){alert(d.error);return;}
-   document.getElementById("result").innerText = d.label+" "+d.risk+"%";
-   document.getElementById("bar").style.width = d.risk+"%";
- })
+async function analyze(){
+    let text = document.getElementById("text").value;
+
+    let res = await fetch("/analyze", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({text})
+    });
+
+    let data = await res.json();
+
+    if(data.error){
+        alert("Geçerli içerik gir!");
+        return;
+    }
+
+    document.getElementById("bar").style.width = data.score + "%";
+    document.getElementById("resultText").innerText =
+        data.label + " (%" + data.score + ")";
+
+    document.getElementById("total").innerText++;
+
+    if(data.label == "Tehlikeli"){
+        document.getElementById("danger").innerText++;
+    } else {
+        document.getElementById("safe").innerText++;
+    }
 }
 
-function load(){
- fetch("/social")
- .then(r=>r.json())
- .then(data=>{
-   let html="";
-   data.forEach(i=>{
-     html+=`<div class="post">
-     [${i.source}] ${i.text}
-     <b>${i.label} (${i.risk}%)</b>
-     </div>`;
-   });
-   document.getElementById("feed").innerHTML=html;
- })
+async function loadSocial(){
+    let res = await fetch("/social");
+    let data = await res.json();
+
+    let feed = document.getElementById("feed");
+    feed.innerHTML = "";
+
+    data.forEach(item=>{
+        let div = document.createElement("div");
+        div.className = "feedItem";
+        div.innerText = item.text + " (%" + item.risk + ")";
+        feed.appendChild(div);
+    });
 }
 
-setInterval(load,5000)
-load()
+loadSocial();
 </script>
 
 </body>

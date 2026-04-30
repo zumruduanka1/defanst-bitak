@@ -1,103 +1,68 @@
 from flask import Flask, render_template, request, jsonify
-import pickle, re, os, requests, smtplib
-from email.mime.text import MIMEText
-from dotenv import load_dotenv
-
-load_dotenv()
+import random
+import re
 
 app = Flask(__name__)
 
-model = pickle.load(open("model.pkl","rb"))
-vectorizer = pickle.load(open("vectorizer.pkl","rb"))
-
-# 🔥 INPUT FILTER
-def is_valid(text):
-    if len(text) < 15:
-        return False
-    if not re.search(r"[a-zA-ZğüşöçıİĞÜŞÖÇ]", text):
+def is_valid_input(text):
+    if not text or len(text.strip()) < 10:
         return False
     return True
 
-# 🔥 ANALİZ
-def analyze(text):
-    X = vectorizer.transform([text])
-    prob = model.predict_proba(X)[0][1]
+def analyze_text(text):
+    keywords_fake = ["şok", "ifşa", "gizli", "komplo", "acil", "yayın kaldırılacak"]
+    score = 0
 
-    risk = int(prob * 100)
+    for k in keywords_fake:
+        if k in text.lower():
+            score += 15
 
-    if risk > 70:
+    score += random.randint(10, 40)
+
+    if score > 100:
+        score = 100
+
+    if score > 70:
         label = "Tehlikeli"
-    elif risk > 40:
+    elif score > 40:
         label = "Şüpheli"
     else:
         label = "Güvenli"
 
-    return risk, label
+    return score, label
 
-# 📧 MAIL
-def send_mail(text, risk):
-    msg = MIMEText(f"Riskli içerik:\n{text}\nRisk: {risk}%")
-    msg["Subject"] = "DEFANS ALERT"
-    msg["From"] = os.getenv("EMAIL_USER")
-    msg["To"] = os.getenv("ALERT_EMAIL")
-
-    s = smtplib.SMTP("smtp.gmail.com",587)
-    s.starttls()
-    s.login(os.getenv("EMAIL_USER"), os.getenv("EMAIL_PASS"))
-    s.send_message(msg)
-    s.quit()
-
-# 🐦 TWITTER API
-def get_twitter():
-    headers = {
-        "Authorization": f"Bearer {os.getenv('TWITTER_BEARER')}"
-    }
-
-    url = "https://api.twitter.com/2/tweets/search/recent?query=haber&max_results=5"
-
-    r = requests.get(url, headers=headers)
-
-    data = []
-
-    if r.status_code == 200:
-        tweets = r.json().get("data",[])
-        for t in tweets:
-            text = t["text"]
-            risk, label = analyze(text)
-
-            data.append({
-                "text": text,
-                "risk": risk,
-                "label": label,
-                "source": "Twitter"
-            })
-
-    return data
 
 @app.route("/")
-def home():
+def index():
     return render_template("index.html")
 
+
 @app.route("/analyze", methods=["POST"])
-def analyze_api():
-    text = request.json["text"]
+def analyze():
+    data = request.json
+    text = data.get("text", "")
 
-    if not is_valid(text):
-        return jsonify({"error":"Geçersiz içerik"})
+    if not is_valid_input(text):
+        return jsonify({"error": "Geçersiz içerik"})
 
-    risk, label = analyze(text)
-
-    if risk > 70:
-        send_mail(text, risk)
+    score, label = analyze_text(text)
 
     return jsonify({
-        "risk": risk,
+        "score": score,
         "label": label
     })
 
+
 @app.route("/social")
 def social():
-    return jsonify(get_twitter())
+    fake_feed = [
+        {"text": "SON DAKİKA! Büyük olay ortaya çıktı!", "risk": 85},
+        {"text": "Bilim insanları açıkladı: gerçek veri", "risk": 20},
+        {"text": "Gizli belge sızdırıldı!", "risk": 78},
+        {"text": "Resmi açıklama geldi", "risk": 30},
+    ]
+    return jsonify(fake_feed)
+
 
 if __name__ == "__main__":
     app.run()
