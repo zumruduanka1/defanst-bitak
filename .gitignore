@@ -1,7 +1,5 @@
-.env
-__pycache__/
-*.pyc
-
 model/
 *.bin
 *.safetensors
+__pycache__/
+.env
