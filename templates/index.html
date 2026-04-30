@@ -1,33 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>DEFANS PRO</title>
-    <link rel="stylesheet" href="/static/style.css">
+<meta charset="UTF-8">
+<title>DEFANS PRO</title>
+<link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
 
-<h1>DEFANS</h1>
-<p>Dezenformasyon Analiz Sistemi</p>
+<div class="header">
+    <h1>DEFANS</h1>
+    <p>Dezenformasyon Analiz Sistemi</p>
+</div>
 
-<div class="container">
+<div class="main">
 
     <div class="left">
+        <input id="email" placeholder="E-mail">
         <textarea id="text" placeholder="Metin gir"></textarea>
-        <button onclick="analyze()">Analiz Et</button>
+        <button onclick="analyze()">Yapay Zeka Analizi</button>
 
-        <h3 id="result"></h3>
+        <div id="result"></div>
     </div>
 
     <div class="right">
-        <h3>📰 Haberler</h3>
-        {% for n in news %}
-            <p>{{n.title}}</p>
-        {% endfor %}
 
-        <h3>🐦 Twitter</h3>
-        {% for t in tweets %}
-            <p>{{t.text}}</p>
-        {% endfor %}
+        <div class="card">
+            <h3>📰 Haberler</h3>
+            {% for n in news %}
+                <p>{{n.title}}</p>
+            {% endfor %}
+        </div>
+
+        <div class="card">
+            <h3>🐦 Twitter</h3>
+            {% for t in tweets %}
+                <p>{{t.text}}</p>
+            {% endfor %}
+        </div>
+
     </div>
 
 </div>
@@ -35,16 +46,17 @@
 <script>
 function analyze(){
     let text = document.getElementById("text").value;
+    let email = document.getElementById("email").value;
 
     fetch("/analyze", {
-        method: "POST",
-        body: new URLSearchParams({text})
+        method:"POST",
+        body: new URLSearchParams({text, email})
     })
-    .then(r => r.json())
-    .then(d => {
-        document.getElementById("result").innerText =
-            "Risk: " + d.risk + " | " + d.label;
-    })
+    .then(r=>r.json())
+    .then(d=>{
+        document.getElementById("result").innerHTML =
+        "<h2>Risk: "+d.risk+" | "+d.label+"</h2>";
+    });
 }
 </script>
 
