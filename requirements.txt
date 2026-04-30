@@ -4,4 +4,4 @@ torch
 requests
 beautifulsoup4
 pillow
-gunicorn
+
