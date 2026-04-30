@@ -1,111 +1,93 @@
 from flask import Flask, render_template, request, jsonify
-import requests, os, smtplib
-from email.mime.text import MIMEText
+import requests, os, random, feedparser
 from dotenv import load_dotenv
 
 load_dotenv()
 app = Flask(__name__)
 
-NEWS_API_KEY = os.getenv("NEWS_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TWITTER_BEARER = os.getenv("TWITTER_BEARER")
-
-
-# ---------------- AI ANALİZ ----------------
+# ---------------- ANALİZ ----------------
 def analyze_text(text):
-    if len(text.strip()) < 10:
+    if not text or len(text.strip()) < 15:
         return {"risk": 0, "label": "Geçersiz"}
 
     score = 10
-    keywords = ["şok", "acil", "ifşa", "hemen paylaş", "gizli"]
 
-    for k in keywords:
-        if k in text.lower():
-            score += 20
+    risky_words = [
+        "şok", "ifşa", "gizli", "hemen paylaş",
+        "kanıtlandı", "yasaklandı", "skandal"
+    ]
 
-    # OpenAI destek
-    try:
-        res = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
-            json={
-                "model": "gpt-4o-mini",
-                "messages": [
-                    {"role": "user", "content": f"Bu metin fake mi? kısa cevap ver: {text}"}
-                ]
-            }
-        )
-        ai = res.json()["choices"][0]["message"]["content"]
+    for w in risky_words:
+        if w in text.lower():
+            score += 15
 
-        if "fake" in ai.lower():
-            score += 30
+    # uzunluk + yapı analizi
+    if len(text) < 50:
+        score += 10
 
-    except:
-        pass
+    if "!" in text:
+        score += 10
+
+    if text.isupper():
+        score += 20
+
+    score = min(score, 100)
 
     return {
-        "risk": min(score, 100),
+        "risk": score,
         "label": "Şüpheli" if score > 60 else "Güvenli"
     }
 
-
-# ---------------- NEWS ----------------
+# ---------------- RSS HABER ----------------
 def get_news():
     try:
-        url = f"https://newsapi.org/v2/top-headlines?country=tr&pageSize=5&apiKey={NEWS_API_KEY}"
-        return requests.get(url).json().get("articles", [])
+        feed = feedparser.parse("https://rss.nytimes.com/services/xml/rss/nyt/World.xml")
+        return [{"title": e.title} for e in feed.entries[:5]]
     except:
         return []
 
 
-# ---------------- TWITTER ----------------
-def get_twitter():
+# ---------------- REDDIT (API’siz) ----------------
+def get_reddit():
     try:
-        url = "https://api.twitter.com/2/tweets/search/recent?query=haber&max_results=5"
-        headers = {"Authorization": f"Bearer {TWITTER_BEARER}"}
-        return requests.get(url, headers=headers).json().get("data", [])
+        url = "https://www.reddit.com/r/news.json"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        data = requests.get(url, headers=headers).json()
+        posts = data["data"]["children"][:5]
+
+        return [{"text": p["data"]["title"]} for p in posts]
     except:
         return []
 
 
-# ---------------- MAIL ----------------
-def send_mail(email, result):
-    try:
-        msg = MIMEText(f"Analiz sonucu: {result}")
-        msg["Subject"] = "DEFANS ANALİZ"
-        msg["From"] = os.getenv("MAIL_USER")
-        msg["To"] = email
-
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(os.getenv("MAIL_USER"), os.getenv("MAIL_PASS"))
-        server.send_message(msg)
-        server.quit()
-    except:
-        pass
+# ---------------- FALLBACK ----------------
+def fallback_news():
+    return [
+        {"title": "Son dakika: kritik gelişme yaşandı (%70)"},
+        {"title": "Sosyal medyada yayılan iddia (%80)"},
+        {"title": "Ekonomide beklenmeyen gelişme (%40)"},
+    ]
 
 
 # ---------------- ROUTES ----------------
 @app.route("/")
 def home():
-    return render_template(
-        "index.html",
-        news=get_news(),
-        tweets=get_twitter()
-    )
+    news = get_news()
+    reddit = get_reddit()
+
+    if not news:
+        news = fallback_news()
+
+    if not reddit:
+        reddit = [{"text": n["title"]} for n in news]
+
+    return render_template("index.html", news=news, reddit=reddit)
 
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
     text = request.form.get("text")
-    email = request.form.get("email")
-
-    result = analyze_text(text)
-
-    if email:
-        send_mail(email, result)
-
-    return jsonify(result)
+    return jsonify(analyze_text(text))
 
 
 if __name__ == "__main__":

@@ -10,52 +10,74 @@
 
 <div class="header">
     <h1>DEFANS</h1>
-    <p>Dezenformasyon Analiz Sistemi</p>
+    <p>Dezenformasyon Erken Analiz Sistemi</p>
 </div>
 
-<div class="main">
+<div class="stats">
+    <div class="box">Toplam Analiz <span id="total">0</span></div>
+    <div class="box red">Tehlikeli <span id="danger">0</span></div>
+    <div class="box green">Güvenli <span id="safe">0</span></div>
+</div>
 
-    <div class="left">
-        <input id="email" placeholder="E-mail">
-        <textarea id="text" placeholder="Metin gir"></textarea>
-        <button onclick="analyze()">Yapay Zeka Analizi</button>
+<div class="container">
 
-        <div id="result"></div>
+<div class="left">
+    <textarea id="text" placeholder="Metin gir"></textarea>
+    <button onclick="analyze()">Analiz Et</button>
+
+    <div class="meter">
+        <div id="bar"></div>
     </div>
 
-    <div class="right">
+    <h2 id="result"></h2>
+</div>
 
-        <div class="card">
-            <h3>📰 Haberler</h3>
-            {% for n in news %}
-                <p>{{n.title}}</p>
-            {% endfor %}
-        </div>
+<div class="right">
 
-        <div class="card">
-            <h3>🐦 Twitter</h3>
-            {% for t in tweets %}
-                <p>{{t.text}}</p>
-            {% endfor %}
-        </div>
-
+    <div class="card">
+        <h3>📰 Haberler</h3>
+        {% for n in news %}
+        <p>{{n.title}}</p>
+        {% endfor %}
     </div>
+
+    <div class="card">
+        <h3>🌐 Sosyal Medya</h3>
+        {% for r in reddit %}
+        <p>{{r.text}}</p>
+        {% endfor %}
+    </div>
+
+</div>
 
 </div>
 
 <script>
+let total=0, danger=0, safe=0;
+
 function analyze(){
     let text = document.getElementById("text").value;
-    let email = document.getElementById("email").value;
 
     fetch("/analyze", {
         method:"POST",
-        body: new URLSearchParams({text, email})
+        body:new URLSearchParams({text})
     })
     .then(r=>r.json())
     .then(d=>{
-        document.getElementById("result").innerHTML =
-        "<h2>Risk: "+d.risk+" | "+d.label+"</h2>";
+        total++;
+        if(d.risk>60) danger++; else safe++;
+
+        document.getElementById("total").innerText=total;
+        document.getElementById("danger").innerText=danger;
+        document.getElementById("safe").innerText=safe;
+
+        document.getElementById("result").innerText =
+        d.label + " ("+d.risk+"%)";
+
+        let bar=document.getElementById("bar");
+        bar.style.width=d.risk+"%";
+
+        bar.style.background = d.risk>60 ? "red" : "lime";
     });
 }
 </script>

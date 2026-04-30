@@ -1,5 +1,44 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+venv/
+.env/
+
+# Model (EN ÖNEMLİ)
 model/
 *.bin
+*.pt
+*.pth
 *.safetensors
-__pycache__/
-.env
+
+# Data (isteğe bağlı)
+data/
+*.csv
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
+
+# Cache
+.cache/
+
+# Node (varsa)
+node_modules/
+
+# Render
+.env.local
