@@ -103,6 +103,26 @@ async function loadFeed(){
 
 loadFeed();
 </script>
+<canvas id="chart"></canvas>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+async function loadChart(){
+    let res = await fetch("/stats");
+    let data = await res.json();
+
+    new Chart(document.getElementById("chart"), {
+        type: 'doughnut',
+        data: {
+            labels: ['Güvenli','Tehlikeli'],
+            datasets: [{
+                data: [data.safe, data.danger]
+            }]
+        }
+    });
+}
+loadChart();
+</script>
 </body>
 </html>
