@@ -1,23 +1,55 @@
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import torch
+import re
+import random
 
-tok = AutoTokenizer.from_pretrained("model")
-mod = AutoModelForSequenceClassification.from_pretrained("model")
+fake_keywords = [
+    "şok", "ifşa", "gizli", "yayılıyor", "herkes konuşuyor",
+    "kanıtlandı", "son dakika", "inanılmaz", "yasaklandı"
+]
 
-def analyze(text):
-    if not text or len(text.strip()) < 20:
-        return {"error":"geçersiz"}
+safe_sources = [
+    "bbc", "reuters", "trt", "aa.com", "cnn"
+]
 
-    inp = tok(text, return_tensors="pt")
-    out = mod(**inp)
+def analyze_text(text):
+    if len(text.strip()) < 10:
+        return {"error": "Boş veya çok kısa veri"}
 
-    prob = torch.nn.functional.softmax(out.logits, dim=1)
-    score = prob[0][1].item()
+    text_lower = text.lower()
 
-    risk = int(score*100)
+    risk = 0
 
-    if risk>75: label="tehlikeli"
-    elif risk>40: label="şüpheli"
-    else: label="güvenli"
+    # clickbait analizi
+    for k in fake_keywords:
+        if k in text_lower:
+            risk += 15
 
-    return {"risk":risk,"label":label}
+    # caps analizi
+    if text.isupper():
+        risk += 20
+
+    # soru manipülasyonu
+    if "?" in text:
+        risk += 10
+
+    # sayı + şok kombinasyonu
+    if re.search(r"\d+", text):
+        risk += 5
+
+    # kaynak kontrol
+    for s in safe_sources:
+        if s in text_lower:
+            risk -= 20
+
+    risk = max(0, min(100, risk))
+
+    if risk > 60:
+        label = "Tehlikeli"
+    elif risk > 30:
+        label = "Şüpheli"
+    else:
+        label = "Güvenli"
+
+    return {
+        "risk": risk,
+        "label": label
+    }

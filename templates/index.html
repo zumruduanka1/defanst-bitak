@@ -1,48 +1,45 @@
 <!DOCTYPE html>
 <html>
+<head>
+<title>DEFANS</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
 <body>
 
-<h1>DEFANS AUTO AI</h1>
+<h1>DEFANS</h1>
 
+<div class="container">
+
+<div class="left">
+<input id="email" placeholder="E-posta">
 <textarea id="text"></textarea>
-<input id="image" placeholder="image url">
+<button onclick="analyze()">Analiz Et</button>
+<p id="result"></p>
+</div>
 
-<button onclick="go()">Analiz</button>
+<div class="right">
+<h3>Canlı Akış (Sosyal Medya)</h3>
+{% for item in feed %}
+<p>{{item.text}} (%{{item.risk}})</p>
+{% endfor %}
+</div>
 
-<div id="res"></div>
-
-<button onclick="good()">Doğru</button>
-<button onclick="bad()">Yanlış</button>
+</div>
 
 <script>
-let lastText=""
-
-function go(){
-let t=text.value
-let i=image.value
-lastText=t
-
+function analyze(){
 fetch("/analyze",{
 method:"POST",
-headers:{"Content-Type":"application/x-www-form-urlencoded"},
-body:"text="+t+"&image="+i
+body:new URLSearchParams({
+text:document.getElementById("text").value,
+email:document.getElementById("email").value
+})
 })
 .then(r=>r.json())
 .then(d=>{
-res.innerText = d.error?d.error:"Risk %"+d.risk+" "+d.label
-})
-}
-
-function good(){
-fetch("/feedback",{method:"POST",
-headers:{"Content-Type":"application/x-www-form-urlencoded"},
-body:"text="+lastText+"&label=0"})
-}
-
-function bad(){
-fetch("/feedback",{method:"POST",
-headers:{"Content-Type":"application/x-www-form-urlencoded"},
-body:"text="+lastText+"&label=1"})
+document.getElementById("result").innerText =
+"Risk: "+d.risk+" | "+d.label;
+});
 }
 </script>
 

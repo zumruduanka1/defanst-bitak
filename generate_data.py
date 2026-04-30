@@ -1,17 +1,27 @@
+import random
 import pandas as pd
 
-fake = ["şok gerçek ortaya çıktı", "acil paylaş", "gizli bilgi"]
-real = ["resmi açıklama", "bilimsel araştırma", "rapor yayınlandı"]
+fake = [
+    "şok gerçek ortaya çıktı",
+    "devlet gizli plan yaptı",
+    "büyük komplo açığa çıktı",
+    "herkes bunu konuşuyor"
+]
+
+real = [
+    "resmi açıklama yapıldı",
+    "bilimsel veri paylaşıldı",
+    "haber ajansları doğruladı",
+    "yetkililer açıkladı"
+]
 
 data = []
 
-for i in range(500):
-    for f in fake:
-        data.append([f,1])
-    for r in real:
-        data.append([r,0])
+for _ in range(50000):
+    data.append([random.choice(fake), 1])
+    data.append([random.choice(real), 0])
 
 df = pd.DataFrame(data, columns=["text","label"])
 df.to_csv("data/main.csv", index=False)
 
-print("dataset hazır")
+print("100K veri üretildi")

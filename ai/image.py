@@ -1,14 +1,10 @@
-from transformers import pipeline
+import random
 
-clf = pipeline("zero-shot-image-classification",
-               model="openai/clip-vit-base-patch32")
+def analyze_image(file):
+    # fake simülasyon (AI mantığı)
+    risk = random.randint(10, 90)
 
-labels = ["fake","real","manipulated"]
-
-def analyze_image(url):
-    try:
-        r = clf(url, candidate_labels=labels)
-        top = r[0]
-        return {"risk":int(top["score"]*100),"label":top["label"]}
-    except:
-        return {"error":"img fail"}
+    return {
+        "risk": risk,
+        "label": "Tehlikeli" if risk > 60 else "Güvenli"
+    }

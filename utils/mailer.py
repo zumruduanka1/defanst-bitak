@@ -1,17 +1,17 @@
-import smtplib, os
-from dotenv import load_dotenv
+import smtplib
+import os
+from email.mime.text import MIMEText
 
-load_dotenv()
-
-def send(msg):
+def send_mail(to, result):
     try:
-        s = smtplib.SMTP("smtp.gmail.com",587)
-        s.starttls()
-        s.login(os.getenv("EMAIL_USER"), os.getenv("EMAIL_PASS"))
+        msg = MIMEText(f"Analiz sonucu:\nRisk: {result['risk']}\nDurum: {result['label']}")
+        msg["Subject"] = "DEFANS ANALİZ SONUCU"
+        msg["From"] = os.getenv("EMAIL_USER")
+        msg["To"] = to
 
-        s.sendmail(os.getenv("EMAIL_USER"), os.getenv("EMAIL_TO_1"), msg)
-        s.sendmail(os.getenv("EMAIL_USER"), os.getenv("EMAIL_TO_2"), msg)
-
-        s.quit()
+        server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+        server.login(os.getenv("EMAIL_USER"), os.getenv("EMAIL_PASS"))
+        server.send_message(msg)
+        server.quit()
     except:
         pass

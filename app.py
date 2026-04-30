@@ -1,41 +1,50 @@
-from flask import Flask, request, jsonify, render_template
-from ai.model import analyze
+from flask import Flask, render_template, request, jsonify
+from ai.model import analyze_text
 from ai.image import analyze_image
-import pandas as pd
-import os
+from utils.preprocess import clean
+from utils.mailer import send_mail
+import random
 
 app = Flask(__name__)
 
+history = []
+
+def fake_social_feed():
+    samples = [
+        "X: Deprem olacak iddiası yayılıyor!",
+        "Instagram: Ünlü isim öldü söylentisi",
+        "TikTok: Gizli belge ifşa edildi",
+        "Facebook: Aşı zararlı mı tartışması",
+        "X: Ekonomi çöktü iddiası",
+        "Instagram: Şok görüntüler paylaşıldı"
+    ]
+    return [{"text": random.choice(samples), "risk": random.randint(10,90)} for _ in range(6)]
+
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", feed=fake_social_feed(), history=history)
 
 @app.route("/analyze", methods=["POST"])
-def api():
+def analyze():
     text = request.form.get("text")
-    image = request.form.get("image")
+    email = request.form.get("email")
 
-    if image:
-        res = analyze_image(image)
-    else:
-        res = analyze(text)
+    if not text:
+        return jsonify({"error": "Boş veri"})
 
-    return jsonify(res)
+    text = clean(text)
+    result = analyze_text(text)
 
-# 🔥 FEEDBACK (öğrenme)
-@app.route("/feedback", methods=["POST"])
-def feedback():
-    text = request.form.get("text")
-    label = request.form.get("label")
+    history.insert(0, {
+        "text": text[:50],
+        "risk": result["risk"],
+        "label": result["label"]
+    })
 
-    df = pd.DataFrame([[text,int(label)]], columns=["text","label"])
+    if email:
+        send_mail(email, result)
 
-    if os.path.exists("data/feedback.csv"):
-        df.to_csv("data/feedback.csv", mode="a", header=False, index=False)
-    else:
-        df.to_csv("data/feedback.csv", index=False)
-
-    return jsonify({"status":"kaydedildi"})
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run()

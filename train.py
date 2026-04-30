@@ -1,35 +1,22 @@
 import pandas as pd
-from datasets import Dataset
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments
+import pickle
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from utils.preprocess import clean_text
 
-df = pd.read_csv("data/clean.csv")
+df = pd.read_csv("data/main.csv")
 
-dataset = Dataset.from_pandas(df)
+df["text"] = df["text"].apply(clean_text)
 
-tok = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+vectorizer = TfidfVectorizer(max_features=5000)
+X = vectorizer.fit_transform(df["text"])
 
-def tokenize(x):
-    return tok(x["text"], truncation=True, padding="max_length")
+y = df["label"]
 
-dataset = dataset.map(tokenize, batched=True)
-dataset = dataset.train_test_split(test_size=0.2)
+model = LogisticRegression()
+model.fit(X, y)
 
-model = AutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=2)
+with open("model/model.pkl", "wb") as f:
+    pickle.dump((vectorizer, model), f)
 
-args = TrainingArguments(
-    output_dir="model",
-    num_train_epochs=4,
-    per_device_train_batch_size=8
-)
-
-trainer = Trainer(
-    model=model,
-    args=args,
-    train_dataset=dataset["train"],
-    eval_dataset=dataset["test"]
-)
-
-trainer.train()
-
-model.save_pretrained("model")
-tok.save_pretrained("model")
+print("Model eğitildi ✅")
