@@ -1,102 +1,56 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html>
 <head>
-<meta charset="UTF-8">
-<title>DEFANS PRO</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
 
-<div class="container">
+<h1>DEFANS</h1>
 
-    <h1>DEFANS</h1>
-    <h2>Dezenformasyon Analiz Sistemi</h2>
+<textarea id="text"></textarea>
+<button onclick="send()">Analiz</button>
 
-    <div class="stats">
-        <div class="card blue">Toplam <span id="total">0</span></div>
-        <div class="card red">Tehlikeli <span id="danger">0</span></div>
-        <div class="card green">Güvenli <span id="safe">0</span></div>
-    </div>
-
-    <div class="main">
-
-        <!-- SOL -->
-        <div class="left">
-
-            <textarea id="text" placeholder="Metin gir..."></textarea>
-
-            <button onclick="analyze()">Analiz Et</button>
-
-            <div class="risk-bar">
-                <div id="bar"></div>
-            </div>
-
-            <h3 id="result"></h3>
-
-        </div>
-
-        <!-- SAĞ -->
-        <div class="right">
-            <h3>Sosyal Medya</h3>
-            <div id="feed"></div>
-        </div>
-
-    </div>
-
+<div class="meter">
+  <div id="bar"></div>
 </div>
 
+<h2 id="result"></h2>
+
+<div id="feed"></div>
+
 <script>
-let total=0, danger=0, safe=0;
-
-function analyze(){
-    let text = document.getElementById("text").value;
-
-    fetch("/analyze",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({text})
-    })
-    .then(res=>res.json())
-    .then(data=>{
-        if(data.error){
-            alert(data.error);
-            return;
-        }
-
-        total++;
-        if(data.label==="Tehlikeli") danger++;
-        if(data.label==="Güvenli") safe++;
-
-        document.getElementById("total").innerText = total;
-        document.getElementById("danger").innerText = danger;
-        document.getElementById("safe").innerText = safe;
-
-        document.getElementById("result").innerText =
-            data.label + " (" + data.risk + "%)";
-
-        let bar = document.getElementById("bar");
-        bar.style.width = data.risk + "%";
-    });
+function send(){
+ fetch("/analyze",{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({text:document.getElementById("text").value})
+ })
+ .then(r=>r.json())
+ .then(d=>{
+   if(d.error){alert(d.error);return;}
+   document.getElementById("result").innerText = d.label+" "+d.risk+"%";
+   document.getElementById("bar").style.width = d.risk+"%";
+ })
 }
 
-function loadSocial(){
-    fetch("/social")
-    .then(res=>res.json())
-    .then(data=>{
-        let html="";
-        data.forEach(item=>{
-            html += `<div class="post">
-                ${item.text}
-                <span>${item.label} (${item.risk}%)</span>
-            </div>`;
-        });
-        document.getElementById("feed").innerHTML = html;
-    });
+function load(){
+ fetch("/social")
+ .then(r=>r.json())
+ .then(data=>{
+   let html="";
+   data.forEach(i=>{
+     html+=`<div class="post">
+     [${i.source}] ${i.text}
+     <b>${i.label} (${i.risk}%)</b>
+     </div>`;
+   });
+   document.getElementById("feed").innerHTML=html;
+ })
 }
 
-loadSocial();
-setInterval(loadSocial, 5000);
+setInterval(load,5000)
+load()
 </script>
 
 </body>
